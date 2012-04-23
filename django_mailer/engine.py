@@ -24,6 +24,13 @@ LOCK_PATH = settings.LOCK_PATH or os.path.join(tempfile.gettempdir(),
 logger = logging.getLogger('django_mailer.engine')
 
 
+def _fallback_encode(text, encoding='idna', fallback='utf8'):
+    try:
+        return text.encode(encoding)
+    except UnicodeError:
+        return text.encode(fallback)
+
+
 def _message_queue(block_size):
     """
     A generator which iterates queued messages in blocks so that new
@@ -170,8 +177,8 @@ def send_queued_message(queued_message, smtp_connection=None, blacklist=None,
         result = constants.RESULT_SKIPPED
     else:
         try:
-            from_address = message.from_address.encode('idna')
-            to_address = message.to_address.encode('idna')
+            from_address = _fallback_encode(message.from_address)
+            to_address = _fallback_encode(message.to_address)
             logger.info("Sending message to %s: %s" %
                          (to_address,
                           message.subject.encode("utf-8")))
