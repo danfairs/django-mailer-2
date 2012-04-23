@@ -1,6 +1,9 @@
+from django.core import mail
+from django.core.management import call_command
 from django.test import TestCase
 from django_mailer import engine, settings
 from django_mailer.lockfile import FileLock
+from django_mailer.tests.base import MailerTestCase
 from StringIO import StringIO
 import logging
 import time
@@ -13,7 +16,7 @@ class LockTest(TestCase):
     """
 
     def setUp(self):
-        # Create somewhere to store the log debug output. 
+        # Create somewhere to store the log debug output.
         self.output = StringIO()
         # Create a log handler which can capture the log debug output.
         self.handler = logging.StreamHandler(self.output)
@@ -23,7 +26,7 @@ class LockTest(TestCase):
         # Add the log handler.
         logger = logging.getLogger('django_mailer')
         logger.addHandler(self.handler)
-        
+
         # Set the LOCK_WAIT_TIMEOUT to the default value.
         self.original_timeout = settings.LOCK_WAIT_TIMEOUT
         settings.LOCK_WAIT_TIMEOUT = 0
@@ -82,3 +85,20 @@ class LockTest(TestCase):
                              'Lock already in place. Exiting.')
         finally:
             time.time = original_time
+
+
+class AddressTestCase(MailerTestCase):
+
+    def test_bad_idna(self):
+        # If idna encoding fails (for example, email address too long) then
+        # fall back to UTF8 and hope for the best.
+        to_email = ('ootofestivalrareatmosphericphenomenacontinuallyoccuring'
+                    '@outoftheordinaryfestival.com')
+        from_email = 'me@me.com'
+        self.queue_message(from_email=from_email, recipient_list=[to_email])
+        call_command('send_mail', verbosity='0')
+        self.assertEqual(1, len(mail.outbox))
+        engine.send_all()
+        m = mail.outbox[0]
+        self.assertEqual(from_email.encode('utf8'), m.from_email)
+        self.assertEqual([to_email.encode('utf8')], m.to)
