@@ -1,3 +1,4 @@
+# -*- coding: utf8 -*-
 from django.core import mail
 from django.core.management import call_command
 from django.test import TestCase
@@ -102,3 +103,38 @@ class AddressTestCase(MailerTestCase):
         m = mail.outbox[0]
         self.assertEqual(from_email.encode('utf8'), m.from_email)
         self.assertEqual([to_email.encode('utf8')], m.to)
+
+
+class MessageTestCase(MailerTestCase):
+
+    def test_unicode_body(self):
+        # Check that we can actually send a message with non-ascii characters
+        # in it.
+        from django_mailer.engine import send_queued_message
+        from django_mailer.models import QueuedMessage, Message
+
+        message = u'Børk Börk bórk'
+        qm = QueuedMessage.objects.create(
+            message=Message.objects.create(
+                to_address='foo@foo.com',
+                from_address='bar@bar.com',
+                encoded_message=message
+            )
+        )
+
+        class FakeConnection(object):
+            def open(self):
+                return False
+
+            @property
+            def connection(self):
+                return self
+
+            def sendmail(self, *args, **kwargs):
+                self.args = args
+                self.kwargs = kwargs
+
+        conn = FakeConnection()
+        send_queued_message(qm, smtp_connection=conn)
+        from_address, to_address, sent_message = conn.args
+        self.assertEqual(message.encode('utf8'), sent_message)

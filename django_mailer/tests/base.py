@@ -2,7 +2,8 @@ from django.core import mail
 from django.test import TestCase
 from django_mailer import queue_email_message
 try:
-    from django.core.mail import backends
+    from django.core.mail.backends.base import BaseEmailBackend
+    from django.core.mail.backends import smtp
     EMAIL_BACKEND_SUPPORT = True
 except ImportError:
     # Django version < 1.2
@@ -27,7 +28,7 @@ class FakeConnection(object):
 
 
 if EMAIL_BACKEND_SUPPORT:
-    class TestEmailBackend(backends.base.BaseEmailBackend):
+    class TestEmailBackend(BaseEmailBackend):
         '''
         An EmailBackend used in place of the default
         django.core.mail.backends.smtp.EmailBackend.
@@ -49,8 +50,8 @@ class MailerTestCase(TestCase):
     """
     def setUp(self):
         if EMAIL_BACKEND_SUPPORT:
-            self.saved_email_backend = backends.smtp.EmailBackend
-            backends.smtp.EmailBackend = TestEmailBackend
+            self.saved_email_backend = smtp.EmailBackend
+            smtp.EmailBackend = TestEmailBackend
         else:
             connection = mail.SMTPConnection
             if hasattr(connection, 'connection'):
@@ -59,7 +60,7 @@ class MailerTestCase(TestCase):
 
     def tearDown(self):
         if EMAIL_BACKEND_SUPPORT:
-            backends.smtp.EmailBackend = self.saved_email_backend
+            smtp.EmailBackend = self.saved_email_backend
         else:
             connection = mail.SMTPConnection
             if hasattr(connection, 'pretest_connection'):
