@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 VERSION = (1, 1, 0, "alpha")
@@ -161,3 +162,13 @@ def restore_django_mail():
     EmailMessage.send = actual_send
     del EmailMessage._actual_send
     return True
+
+
+def now():
+    """ Wrapper to try to get the best 'now' possible """
+    try:
+        from django.utils import timezone
+    except ImportError:
+        return datetime.datetime.now()
+    else:
+        return timezone.now()
